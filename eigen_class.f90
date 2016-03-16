@@ -56,6 +56,8 @@ contains
 		if (allocated(work)) deallocate(work)
 		allocate(work(1))
 
+		!print*,'nfancy', nfancy
+
 		! We probe DSYGV to find out the dimension of the work array 
 		call DSYGV(1, 'V', 'U', nfancy, self%eigenvec, nfancy, B, nfancy, self%eigenval, work, -1, info)
 			
@@ -72,6 +74,9 @@ contains
 				print*, 'ERROR: check work allocation'
 				STOP
 			end if
+		!print*, H
+		!print*, self%eigenvec
+		!print*, B
 		
 		! This is literally diagonalising the Hamiltonian, amazing. 
 		call DSYGV(1, 'V', 'U', nfancy, self%eigenvec, nfancy, B, nfancy, self%eigenval, work, lwork, info)

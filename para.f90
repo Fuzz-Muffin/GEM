@@ -54,7 +54,6 @@ contains
 		k=sqrt(2*e)
 		sinkr=sin(k*r)
 	end function sinkr
-
 !	real(kind=range) function R(n,l,Z,x)
 !		implicit none
 !		real(kind=range), intent(in) :: x

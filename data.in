@@ -1,18 +1,19 @@
-F,T				! Verbose mode, code timing
-1,2,3,4 		! npwave, npdbl, ndouble, ltmax
-1.0, 1.0, 1.0 	! formcut, regcut, expcut 
-F,T				! showplots: Basis functions, Wave functions
-F,1				! Calculate overlaps for free hamiltonian and Sin(kr) (0=analytic, 1=numeric, 3=both)
-F,2				! Calculate expectation values for H atom <r^p>, max |p| to calc
-T,0				! Calculate oscillator strengths of 1s->np for H atom (0=analytic, 1=numeric, 3=both)
+F,T			! Verbose mode, code timing
+6,32,8,10,10.0 		! npwave, npdbl, ndouble, ltmax, qmax
+10.0E-8, 10.E-8, 10.0E-8 	! formcut, regcut, expcut 
+F,T			! showplots: Basis functions, Wave functions
+F,1			! Calculate overlaps for free hamiltonian and Sin(kr) (0=analytic, 1=numeric, 3=both)
+F,2			! Calculate expectation values for H atom <r^p>, max |p| to calc
+T,1			! Calculate oscillator strengths of 1s->np for H atom (0=analytic, 1=numeric, 3=both)
 50,0.01		! Rmax(even num), stepsize: parameters that control the R grid
-1				! BasisType: =0 gaussian, =1 complex gaussians
-0, 1			! l_i, l_f: Angular Momenta to loop over
-0.2, 80, 15 	! r1, rN, N(nfancy)/for comp x2: parameters Gaussian basis functions
-1.5				! alpha, parameter of comp-gaussians 
-1.0	 			! mu: The reduced mass of the system
+2			! BasisType: =0 gaussian, =1 complex gaussians, =2 sturmian
+0, 1		! l_i, l_f: Angular Momenta to loop over
+0.4 	 	! laguerre alpha
+0.2, 40, 15	! r1, rN, N(nfancy)/for comp x2: parameters Gaussian basis functions
+1.5			! alpha, parameter of comp-gaussians 
+1.0	 		! mu: The reduced mass of the system
 1E-80 , 1E80	! lowtol, hightol: controls the low and high cutoff vals for basis
-3				! Vstat:The potential of the system, use the legend below 
+3			! Vstat:The potential of the system, use the legend below 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!	1) V(r)=0, i.e. free Hamiltonian 		 	!!
 !!	2) V(r)=r^2 								!!

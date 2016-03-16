@@ -1,13 +1,16 @@
 !---------------------------------------------------------------!
-!This code was written by Liam Scarlett of Curtin University 	!
+! This code was adapted from gridobject.f90 written by 
+! Professor Dmitry Fursa
 !---------------------------------------------------------------!
 !
 module grid_class
+ use input_class
  implicit none
- public
+ private
+ public minmaxi
 
 ! This is declaration of the type rgrid.
- type GridObject
+ type, public :: GridObject
     integer:: npwave                      ! the number of points per oscillation
     integer:: npdbl                       ! the number of points with the same dx per interval
     real*8:: rmax                         ! maximum value of r
@@ -29,19 +32,12 @@ module grid_class
     real*8, dimension(:,:), allocatable:: rpow_f, rpow_g
     integer, dimension(:), allocatable:: i1_f, i2_g
 ! note that i1_g = 1, and i2_f = nr
-    
+
+  contains
+	procedure :: setgrid, destruct
 end type GridObject
 
-!****  This is declaration of an object of the type rgrid.
-
-
-!****
-
-! This is public method for type rgrid 
- public setgrid
-
-contains
-
+ contains
 !======================================================================      
 !  This subroutine sets up radial grid:  grid. It is used to perform integrations
 !  from zero to infinity using Simpson's rule. The structure is such
@@ -67,10 +63,8 @@ contains
 ! the second term and finishes at the one before last.
 !======================================================================      
 subroutine setgrid(self, indata)
-  use input_class
-  implicit none
-  type(GridObject) :: self
-  type(Input) :: indata
+  class(GridObject), intent(inout) :: self
+  type(Input),intent(in) :: indata
 
   integer:: npwave, npdbl, nleft, j, nj, nd, max_nj, jb
   real*8:: hmax, hmin, rdble, rleft, r, dr
@@ -200,14 +194,29 @@ subroutine setgrid(self, indata)
      end do
 
   end do
-
-
 end subroutine setgrid
 
-subroutine destruct_rgrid(self)
+	subroutine minmaxi(f,grid,i1,i2)
+		implicit none
+		type(GridObject), intent(in) :: grid
+		real*8, intent(in) :: f(:)
+		integer, intent(out) :: i1, i2
+		integer:: i
+		
+		i=1
+		do while (i.lt.grid%nr.and.abs(f(i)).lt.grid%regcut)
+		   i=i+1
+		end do
+		i1=i
+		i=grid%nr
+		do while (i.gt.1.and.abs(f(i)).lt.grid%expcut)
+		   i=i-1
+		end do
+		i2=i
+	end subroutine minmaxi
 
-  implicit none
-  type(GridObject) self
+subroutine destruct(self)
+  class(GridObject) :: self
 
   deallocate(self%rpow_f)
   deallocate(self%rpow_g)
@@ -215,6 +224,6 @@ subroutine destruct_rgrid(self)
   deallocate(self%i2_g)
   deallocate(self%rgrid,self%weight,self%bool)
 
-end subroutine destruct_rgrid
+end subroutine destruct
 
 end module grid_class

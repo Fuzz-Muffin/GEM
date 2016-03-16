@@ -1,10 +1,11 @@
 module wavefun_class
 	use para
+	use grid_class
 	implicit none 
 	private
 	
-	type, public :: wavefun
-		real(kind=range), allocatable,dimension(:,:) :: psi
+	type, public :: wavefunction
+		real(kind=range), allocatable,dimension(:) :: psi
 	contains
 		procedure 	:: new => new_wavefun
 		procedure	:: destruct
@@ -14,7 +15,7 @@ module wavefun_class
 contains
 	
 	! Construct wave function set
-	subroutine new_wavefun(self, eigenvec, basis, Rlength, V)
+	subroutine new_wavefun(self, eigenvec, basis, grid, V)
 		class(wavefun), intent(inout) :: self
 		integer :: i, j, alstat, nfancy
 	   	integer, intent(in) :: Rlength, V

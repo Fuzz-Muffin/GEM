@@ -1,13 +1,14 @@
 module oscillator_strength
 	use para
 	use basis_class
-	use wavefun_class
+	use basis_class_laguerre 
+	use grid_class
 	use eigen_class
 	implicit none 
 	public
 
 interface os_calc_numerical
-	module procedure os_calc_reg_n, os_calc_comp_n
+	module procedure os_calc_reg_n, os_calc_comp_n, os_calc_lag_n
 end interface os_calc_numerical
 
 interface os_calc_analytic
@@ -21,64 +22,45 @@ contains
 	! Via Simpson's method numerical integration 							 !
 	!------------------------------------------------------------------------!
 
-	subroutine os_calc_reg_n(Gbasis, energies, wavefuns, rgrid)
+	subroutine os_calc_reg_n(Gbasis, energies, psi, grid)
 		type(basis), intent(in), dimension(:) :: Gbasis
-		type(wavefun), intent(in), dimension(:) :: wavefuns
-		real(kind=range), intent(in),dimension(:,:) :: energies 
-		real(kind=range), allocatable, dimension(:) :: rgrid, f, a
-		real(kind=range) :: tmp, tmp_a, tmp_b, h, x0, x1, x2, x
-		integer :: l_i, l_f, rmax, k
+		type(GridObject), intent(in) :: grid
+		real(kind=range), intent(in), dimension(:,:,:) :: psi
+		real(kind=range), intent(in), dimension(:,:) :: energies 
+		real(kind=range), allocatable, dimension(:) :: f, a
+		real(kind=range) :: tmp
+		integer :: l_i, l_f, k, max_tmp, min_tmp, tmp_a, tmp_b, tmp_c, tmp_d
 		integer :: i, counter=0
 		open(2, file='oscillator_strength_numerical.txt', action='write', status='replace')
 		write(2,*) '	1s -> np'
-		call Gbasis(1)%get_ell(l_i)
+		call Gbasis(1)%get_ell(1, l_i)
 		do i=1,size(energies(:,1))
 			if (energies(i,2)<0.0) counter=counter+1
 		end do
 	   	allocate(f(size(Energies(:,1)))); allocate(a(size(Energies(:,1)))); a=0.0; f=0.0
 		do i=1, counter
-			tmp=0.0; x0=0.0
-			call Gbasis(2)%get_ell(l_f)
+			tmp=0.0
+			call Gbasis(2)%get_ell(1, l_f)
 			! Simpson integration
-			h=rgrid(2)-rgrid(1)	
-			rmax=size(rgrid)
-			x1=0.0; x2=0.0
-			x0=(0.0)+(wavefuns(1)%psi(rmax,1)*wavefuns(2)%psi(rmax,i)*rmax**3)
-			do k=1, (rmax-1)
-				x=real(k*h)
-				tmp_a=wavefuns(1)%psi(k,1)
-				tmp_b=wavefuns(2)%psi(k,i)
-				if (mod(k,2)==0) then
-					x2=x2+(tmp_a*tmp_b*x**3)
-				else
-					x1=x1+(tmp_a*tmp_b*x**3)
-				end if
-			end do
-			tmp=h*(x0+2.0*x2+4.0*x1)/3.0
+			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+					grid%rgrid(min_tmp:max_tmp)**3*grid%weight(min_tmp:max_tmp))
 			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
 			!print*, f(i)	
 			write(2,'(I2,a,a,2E15.5)') i+l_f,'p','',f(i)
 		end do
 		write(2,*) 'Continuum'
 		do i=counter+1, size(energies(:,1))
-			tmp=0.0; x0=0.0
-			call Gbasis(2)%get_ell(l_f)
+			tmp=0.0
+			call Gbasis(2)%get_ell(1, l_f)
 			! Simpson integration
-			h=rgrid(2)-rgrid(1)	
-			rmax=size(rgrid)
-			x1=0.0; x2=0.0
-			x0=(0.0)+(wavefuns(1)%psi(rmax,1)*wavefuns(2)%psi(rmax,i)*rmax**3)
-			do k=1, (rmax-1)
-				x=real(k*h)
-				tmp_a=wavefuns(1)%psi(k,1)
-				tmp_b=wavefuns(2)%psi(k,i)
-				if (mod(k,2)==0) then
-					x2=x2+(tmp_a*tmp_b*x**3)
-				else
-					x1=x1+(tmp_a*tmp_b*x**3)
-				end if
-			end do
-			tmp=h*(x0+2.0*x2+4.0*x1)/3.0
+			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+					grid%rgrid(min_tmp:max_tmp)**3*grid%weight(min_tmp:max_tmp))
 			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
 			!print*, f(i)	
 			write(2,'(2E15.5)') f(i)
@@ -90,73 +72,54 @@ contains
 
 		! Dipole polarizability
 		do i=1,size(Energies(:,1))
-			a(i)=a(i-1)+f(i)*(energies(i,2)-energies(1,1))**(-2)
-			write(2,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', a(i)
+			a(i)=f(i)*(energies(i,2)-energies(1,1))**(-2)
+			write(2,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', sum(a(1:i))
 		end do
 		write(2,*) ''
-		write(2,'(a,E15.5,a)') 'static dipole polarizability is thus a=', (a(size(Energies(:,1))))*0.148184*10.0**24,' cm^3'
+		write(2,'(a,E15.5,a)') 'static dipole polarizability is thus a=', sum(a)*0.148184*10.0**24,' cm^3'
 		close(2)
 		deallocate(f); deallocate(a)
 	end subroutine os_calc_reg_n
 
-	subroutine os_calc_comp_n(Gbasis, energies, wavefuns, rgrid)
+	subroutine os_calc_comp_n(Gbasis, energies, psi, grid)
 		type(basis_c), intent(in), dimension(:) :: Gbasis
-		type(wavefun), intent(in), dimension(:) :: wavefuns
-		real(kind=range), intent(in),dimension(:,:) :: energies 
-		real(kind=range), allocatable, dimension(:) :: rgrid, f, a
-		real(kind=range) :: tmp, tmp_a, tmp_b, h, x0, x1, x2, x
-		integer :: l_i, l_f, rmax, k
+		type(GridObject), intent(in) :: grid
+		real(kind=range), intent(in), dimension(:,:,:) :: psi
+		real(kind=range), intent(in), dimension(:,:) :: energies 
+		real(kind=range), allocatable, dimension(:) :: f, a
+		real(kind=range) :: tmp
+		integer :: l_i, l_f, k, tmp_a, tmp_b, tmp_c, tmp_d, max_tmp, min_tmp
 		integer :: i, counter=0
 		open(2, file='oscillator_strength_numerical.txt', action='write', status='replace')
 		write(2,*) '	1s -> np'
-		call Gbasis(1)%get_ell(l_i)
+		call Gbasis(1)%get_ell(1, l_i)
 		do i=1,size(energies(:,1))
 			if (energies(i,2)<0.0) counter=counter+1
 		end do
 	   	allocate(f(size(Energies(:,1)))); allocate(a(size(Energies(:,1)))); a=0.0; f=0.0
 		do i=1, counter
-			tmp=0.0; x0=0.0
-			call Gbasis(2)%get_ell(l_f)
+			tmp=0.0
+			call Gbasis(2)%get_ell(1, l_f)
 			! Simpson integration
-			h=rgrid(2)-rgrid(1)	
-			rmax=size(rgrid)
-			x1=0.0; x2=0.0
-			x0=(0.0)+(wavefuns(1)%psi(rmax,1)*wavefuns(2)%psi(rmax,i)*rmax**3)
-			do k=1, (rmax-1)
-				x=real(k*h)
-				tmp_a=wavefuns(1)%psi(k,1)
-				tmp_b=wavefuns(2)%psi(k,i)
-				if (mod(k,2)==0) then
-					x2=x2+(tmp_a*tmp_b*x**3)
-				else
-					x1=x1+(tmp_a*tmp_b*x**3)
-				end if
-			end do
-			tmp=h*(x0+2.0*x2+4.0*x1)/3.0
+			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+					grid%rgrid(min_tmp:max_tmp)**3*grid%weight(min_tmp:max_tmp))
 			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
 			!print*, f(i)	
 			write(2,'(I2,a,a,2E15.5)') i+l_f,'p','',f(i)
 		end do
 		write(2,*) 'Continuum'
 		do i=counter+1, size(energies(:,1))
-			tmp=0.0; x0=0.0
-			call Gbasis(2)%get_ell(l_f)
+			tmp=0.0
+			call Gbasis(2)%get_ell(1, l_f)
 			! Simpson integration
-			h=rgrid(2)-rgrid(1)	
-			rmax=size(rgrid)
-			x1=0.0; x2=0.0
-			x0=(0.0)+(wavefuns(1)%psi(rmax,1)*wavefuns(2)%psi(rmax,i)*rmax**3)
-			do k=1, (rmax-1)
-				x=real(k*h)
-				tmp_a=wavefuns(1)%psi(k,1)
-				tmp_b=wavefuns(2)%psi(k,i)
-				if (mod(k,2)==0) then
-					x2=x2+(tmp_a*tmp_b*x**3)
-				else
-					x1=x1+(tmp_a*tmp_b*x**3)
-				end if
-			end do
-			tmp=h*(x0+2.0*x2+4.0*x1)/3.0
+			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+					grid%rgrid(min_tmp:max_tmp)**3*grid%weight(min_tmp:max_tmp))
 			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
 			!print*, f(i)	
 			write(2,'(2E15.5)') f(i)
@@ -168,14 +131,75 @@ contains
 
 		! Dipole polarizability
 		do i=1,size(Energies(:,1))
-			a(i)=a(i-1)+f(i)*(energies(i,2)-energies(1,1))**(-2)
-			write(2,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', a(i)
+			a(i)=f(i)*(energies(i,2)-energies(1,1))**(-2)
+			write(2,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', sum(a(1:i))
 		end do
 		write(2,*) ''
-		write(2,'(a,E15.5,a)') 'static dipole polarizability is thus a=',a(size(Energies(:,1)))*0.148184*10.0**(24),' cm^3'
+		write(2,'(a,E15.5,a)') 'static dipole polarizability is thus a=', sum(a)*0.148184*10.0**24,' cm^3'
 		close(2)
 		deallocate(f); deallocate(a)
 	end subroutine os_calc_comp_n
+	
+	subroutine os_calc_lag_n(Lbasis, energies, psi, grid)
+		type(BasisObject), intent(in), dimension(:) :: Lbasis
+		type(GridObject), intent(in) :: grid
+		real(kind=range), intent(in), dimension(:,:,:) :: psi
+		real(kind=range), intent(in), dimension(:,:) :: energies 
+		real(kind=range), allocatable, dimension(:) :: f, a
+		real(kind=range) :: tmp
+		integer :: l_i, l_f, k, max_tmp, min_tmp, tmp_a, tmp_b, tmp_c, tmp_d
+		integer :: i, counter=0
+		open(2, file='oscillator_strength_numerical.txt', action='write', status='replace')
+		write(2,*) '	1s -> np'
+		l_i=Lbasis(1)%b(1)%l
+		do i=1,size(energies(:,1))
+			if (energies(i,2)<0.0) counter=counter+1
+		end do
+	   	allocate(f(size(Energies(:,1)))); allocate(a(size(Energies(:,1)))); a=0.0; f=0.0
+		do i=1, counter
+			tmp=0.0
+			l_f=Lbasis(2)%b(1)%l
+			! Simpson integration
+!			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+!			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+!			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+!			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+!					grid%rgrid(min_tmp:max_tmp)**2*grid%weight(min_tmp:max_tmp))
+			tmp=sum(psi(1,:,1)*psi(2,:,i)*grid%rgrid(:)**2*grid%weight(:))
+			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
+			print*, f(i)	
+			write(2,'(I2,a,a,2E15.5)') i+l_f,'p','',f(i)
+		end do
+		write(2,*) 'Continuum'
+		do i=counter+1, size(energies(:,1))
+			tmp=0.0
+			!l_f=Lbasis(2)%b(1)%l
+			! Simpson integration
+!			call minmaxi(psi(1,:,i), grid, tmp_b, tmp_a)
+!			call minmaxi(psi(2,:,i), grid, tmp_d, tmp_c)
+!			max_tmp=min(tmp_a, tmp_c); min_tmp=max(tmp_b, tmp_d)
+!			tmp=sum(psi(1,min_tmp:max_tmp,1)*psi(2,max_tmp:min_tmp,i)*&
+!					grid%rgrid(min_tmp:max_tmp)**2*grid%weight(min_tmp:max_tmp))
+			tmp=sum(psi(1,:,1)*psi(2,:,i)*grid%rgrid(:)**2*grid%weight(:))
+			f(i) = (2.0/3.0)*(energies(i,2)-energies(1,1))*(tmp)**2		
+			!print*, f(i)	
+			write(2,'(2E15.5)') f(i)
+		end do
+			
+		write(2,'(a,2E15.5)') 'Sum of discrete spectrum :',sum(f(1:counter))
+		write(2,'(a,2E15.5)') 'Sum of continous spectrum :',sum(f(counter+1:size(f)))
+		write(2,'(a,2E15.5)') 'Sum of oscillator strengths :',sum(f)
+
+		! Dipole polarizability
+		do i=1,size(Energies(:,1))
+			a(i)=f(i)*(energies(i,2)-energies(1,1))**(-2)
+			write(2,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', sum(a(1:i))
+		end do
+		write(2,*) ''
+		write(2,'(a,E15.5,a)') 'static dipole polarizability is thus a=', sum(a)*0.148184*10.0**24,' cm^3'
+		close(2)
+		deallocate(f); deallocate(a)
+	end subroutine os_calc_lag_n
 	!------------------------------------------------------------------------!
 
 	!------------------------------------------------------------------------!
@@ -191,8 +215,8 @@ contains
 							Ei, Ef, tmp=0.0
 		open(3, file='oscillator_strength_analytic.txt', action='write', status='replace')
 		write(3,*) '	1s -> np'
-		call Gbasis(1)%get_ell(l_i)
-		call Gbasis(2)%get_ell(l_f)
+		call Gbasis(1)%get_ell(1, l_i)
+		call Gbasis(2)%get_ell(1, l_f)
 		call Eigenstuff(1)%get_eigenval(1, Ei)
 		N=size(eigenstuff(1)%eigenval(:))
 		do i=1,N
@@ -232,11 +256,11 @@ contains
 		do i=1,N
 			call eigenstuff(1)%get_eigenval(1,Ei)
 			call eigenstuff(2)%get_eigenval(i,Ef)
-			a(i)=a(i-1)+f(i)*(Ef-Ei)**(-2)
-			write(3,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', a(i)
+			a(i)=f(i)*(Ef-Ei)**(-2)
+			write(3,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', sum(a(1:i))
 		end do
 		write(3,*) ''
-		write(3,'(a,E15.5,a)') 'static dipole polarizability is thus a=',	a(N)*0.148184*10.0**(24),' cm^3'
+		write(3,'(a,E15.5,a)') 'static dipole polarizability is thus a=',	sum(a)*0.148184*10.0**(24),' cm^3'
 		close(3)
 		deallocate(f); deallocate(a)
 	end subroutine os_calc_reg_a
@@ -250,8 +274,8 @@ contains
 		real(kind=range) :: tmp_a, tmp_b, Ei, Ef, tmp=0.0
 		open(3, file='oscillator_strength_analytic.txt', action='write', status='replace')
 		write(3,*) '	1s -> np'
-		call Gbasis(1)%get_ell(l_i)
-		call Gbasis(2)%get_ell(l_f)
+		call Gbasis(1)%get_ell(1, l_i)
+		call Gbasis(2)%get_ell(1, l_f)
 		call Eigenstuff(1)%get_eigenval(1, Ei)
 		N=size(eigenstuff(1)%eigenval(:))
 		do i=1,N
@@ -264,7 +288,7 @@ contains
 			call eigenstuff(2)%get_eigenval(i, Ef)
 			tmp=0.0
 			do j=1, N
-					call Gbasis(1)%get_N(j,Nj)
+					call Gbasis(1)%get_N(j, Nj)
 					call Gbasis(1)%get_eta(j, eta_j)
 					call Gbasis(1)%get_C1(j, C1j)
 					call Gbasis(1)%get_C2(j, C2j)
@@ -305,11 +329,11 @@ contains
 		do i=1,N
 			call eigenstuff(1)%get_eigenval(1,Ei)
 			call eigenstuff(2)%get_eigenval(i,Ef)
-			a(i)=a(i-1)+f(i)*(Ef-Ei)**(-2)
-			write(3,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', a(i)
+			a(i)=f(i)*(Ef-Ei)**(-2)
+			write(3,'(a,I3.3,a,2E15.5)') 'Static dipole polarizability using',i,'terms, a=', sum(a(1:i))
 		end do
 		write(3,*) ''
-		write(3,'(a,E15.5,a)') 'static dipole polarizability is thus a=',	a(N)*0.148184*10.0**(24),' cm^3'
+		write(3,'(a,E15.5,a)') 'static dipole polarizability is thus a=',	sum(a)*0.148184*10.0**(24),' cm^3'
 		close(3)
 		deallocate(f); deallocate(a)
 	end subroutine os_calc_comp_a

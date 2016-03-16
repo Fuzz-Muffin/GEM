@@ -108,7 +108,7 @@ contains
 		real(kind=range), intent(inout) :: self(nfancy,nfancy)
 		real(kind=range), intent(in) :: mu
 		real(kind=range) :: nui, nuj
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		do i=1, nfancy
 			do j=1, nfancy
 				call Gbasis%get_nu(i, nui)
@@ -127,7 +127,7 @@ contains
 		real(kind=range), intent(in) :: mu
 		real(kind=range) :: nui, nuj		
 		! Using the Vstat parameter to select the desired potential
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		select case (Vstat)
 		case(1)
 			self=0
@@ -173,7 +173,7 @@ contains
 		integer, intent(in) :: nfancy
 		real(kind=range), intent(inout) :: self(nfancy,nfancy)
 		real(kind=range) :: nui, nuj
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		do i=1,nfancy
 			do j=1,nfancy
 				call Gbasis%get_nu(i, nui)
@@ -195,7 +195,7 @@ contains
 		real(kind=range), intent(in) :: mu
 		complex(kind=range) :: etai, etaj, tmp_a, tmp_b, tmp_c, tmp_d,&
 				C1i, C2i, C1j, C2j 
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		do i=1, nfancy
 			call Gbasis%get_eta(i, etai)
 			call Gbasis%get_C1(i, C1i)
@@ -227,7 +227,7 @@ contains
 		complex(kind=range) :: etai, etaj, tmp_a, tmp_b, tmp_c, tmp_d,&
 				C1i, C2i, C1j, C2j 
 		! Using the Vstat parameter to select the desired potential
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		select case (Vstat)
 		case(1)
 			self=0
@@ -315,7 +315,7 @@ contains
 		complex(kind=range) :: etai, etaj, tmp_a, tmp_b, tmp_c, tmp_d,&
 				C1i, C2i, C1j, C2j
 		real(kind=range) :: p
-		call Gbasis%get_ell(l)
+		call Gbasis%get_ell(1,l)
 		!print*,'S'
 		do i=1, nfancy
 			call Gbasis%get_C1(i, C1i)
